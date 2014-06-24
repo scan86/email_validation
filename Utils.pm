@@ -33,11 +33,11 @@ sub getSplits {
     my $last = 0;
     for ( my $part = 0 ; $part < $num ; $part++ ) {
         my $part_size = int( $cnt / $num );
-
-        my $start = $last;
+        
+		my $start = $last;
         my $stop;
 
-        if ( ( $cnt - ( $last + $part_size ) ) > $part_size ) {
+        if ( ( $cnt - ( $last + $part_size ) ) >= $part_size ) {
             $stop = $start + $part_size - 1;
         }
         else {
