@@ -37,12 +37,11 @@ sub getSplits {
 		my $start = $last;
         my $stop;
 
-        if ( ( $cnt - ( $last + $part_size ) ) >= $part_size ) {
-            $stop = $start + $part_size - 1;
-        }
-        else {
-            $stop = $cnt - 1;
-        }
+        if ($part == ($num - 1)) {
+		 $stop = $cnt - 1;
+		} else {
+		 $stop = $start + $part_size - 1;
+		}
 
         $result{$part} = { 'start' => $start, 'stop' => $stop };
 
