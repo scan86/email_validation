@@ -24,11 +24,13 @@ use diagnostics;
 
 use threads;
 use threads::shared;
+use Storable;
 use Log::Log4perl qw(get_logger);
 use Data::Dumper;
 
 use Emailprovider;
 use Utils;
+
 
 use Mail::CheckUser qw(check_email last_check);
 $Mail::CheckUser::Skip_SYN              = 0;
@@ -43,8 +45,8 @@ Log::Log4perl::init("log4perl.conf");
 
 $| = 1;
 
-my $threads_num = 2;
-my $p      = new Emailprovider("./testset");
+my $threads_num = 10;
+my $p      = new Emailprovider("./list1.raw.prepared");
 my $ref    = $p->provide();
 my %splits = Utils::getSplits( $ref, $threads_num );
 
@@ -54,18 +56,23 @@ sub worker {
     my ( $id, $elements_ref, $start_element, $stop_element, $result_ref ) = @_;
     my $log = get_logger();
 
-    #$log->info( "Thread id $id strated with start element $start_element "
-    #      . "and stop element $stop_element" );
+    $log->info( "Thread id $id strated with start element $start_element "
+          . "and stop element $stop_element" );
 
     foreach ( my $i = $start_element ; $i < $stop_element + 1 ; $i++ ) {
         my $email = ${$elements_ref}[$i];
-        print $id, " ", $email, "\n";
 		
-		my $status = check_email($email);
-		my $result = last_check()->{'reason'};
-		my $str = $status . "\t" . $result;
-		$result_ref->{$email} = $str;
+		my ($status, $result) : shared;
+		$status = check_email($email);
+		$result = last_check()->{'reason'};
+		
+		$result_ref->{$email} = shared_clone( { 
+				'status' => check_email($email),
+				'reason' => last_check()->{'reason'}
+			  } );
+
     }
+	$log->info("Thread id $id done");
 }
 
 # start
@@ -75,9 +82,29 @@ foreach my $t_id ( keys %splits ) {
     my $stop  = $splits{$t_id}{'stop'};
     push @threads, threads->create( \&worker, $t_id, $ref, $start, $stop, \%result );
 }
-
 foreach my $t (@threads) { $t->join(); }
 
-foreach my $key ( keys %result) {
- print $key, " ", $result{$key}, " ", "\n";
+if ( ! scalar(keys %result) > 1) {
+  exit 1;
+}
+writeResult(\%result, "./good", "./bad");
+
+sub writeResult {
+ my ($result_ref, $good, $bad ) = @_;
+ 
+ open(my $good_fd, '>', $good);
+ open(my $bad_fd, '>', $bad);
+
+ foreach my $key (keys %{$result_ref}) {
+  if (${$result_ref}{$key}{'status'}) {
+   print $good_fd $key, "\n";
+   next;
+  };
+  my $reason = ${$result_ref}{$key}{'reason'};
+  print $bad_fd $key, "\t", $reason, "\n";
+ }
+
+ close($bad_fd);
+ close($good_fd);
+
 }
