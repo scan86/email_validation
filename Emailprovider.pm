@@ -3,7 +3,7 @@
 #
 #         FILE:  Emailprovider.pm
 #
-#  DESCRIPTION:  
+#  DESCRIPTION:
 #
 #        FILES:  ---
 #         BUGS:  ---
@@ -15,7 +15,6 @@
 #     REVISION:  ---
 #===============================================================================
 
-
 package Emailprovider;
 
 use strict;
@@ -23,50 +22,51 @@ use warnings;
 use diagnostics;
 
 use Log::Log4perl qw(get_logger);
+use List::MoreUtils qw(uniq);
 
 sub new {
- my $class = shift;
- 
- my $self = {
-  'file' => shift,
- };
- 
- bless $self, $class;
- return $self;
+    my $class = shift;
+
+    my $self = { 'file' => shift, };
+
+    bless $self, $class;
+    return $self;
 }
 
 sub provide {
- my ($self, $params)  = @_;
- my $log = get_logger();
+    my ( $self, $params ) = @_;
+    my $log = get_logger();
 
- my $email_ref = load($self->{'file'});
- $log->debug("Provided " . scalar(@{$email_ref}) . " emails...");
- return $email_ref; 
+    my $email_ref = load( $self->{'file'} );
+    $log->debug( "Provided " . scalar( @{$email_ref} ) . " emails..." );
+    return $email_ref;
 }
 
 sub load {
- my $file = shift;
+    my $file = shift;
 
- my $result = [ ];
- 
- open(my $fh, '<', $file);
+    my @result;
 
- while (my $line = <$fh>) {
-  chomp($line);
+    open( my $fh, '<', $file );
 
-  if ($line =~ m/\,/) {
-   my @email = split(/\,/, $line);
-   foreach my $email (@email) {
-     push @{$result}, $email;
-   };
-   next;
-  }
+    while ( my $line = <$fh> ) {
+        chomp($line);
+		$line =~ tr/[A-Z]/[a-z]/;
 
-  push @{$result}, $line;
- }
+        if ( $line =~ m/\,/ ) {
+            my @email = split( /\,/, $line );
+            foreach my $email (@email) {
+                push @result, $email;
+            }
+            next;
+        }
 
- close($fh);
- return $result;
+        push @result, $line;
+    }
+
+    close($fh);
+    my @uniq = uniq(@result);
+    return \@uniq;
 }
 
 1;
